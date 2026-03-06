@@ -1,0 +1,98 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PROJECT_ID: devops-project-489401
+  REGISTRY: us-central1-docker.pkg.dev
+  WIF_PROVIDER: projects/366719329190/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  WIF_SERVICE_ACCOUNT: github-actions-sa@devops-project-489401.iam.gserviceaccount.com
+
+jobs:
+  test-book-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Dependencies
+        working-directory: apps/book-service
+        run: pip install -r requirements.txt pytest
+      - name: Run Tests
+        working-directory: apps/book-service
+        run: pytest tests/ -v
+
+  test-order-service:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install Dependencies
+        working-directory: apps/order-service
+        run: npm install
+      - name: Run Tests
+        working-directory: apps/order-service
+        run: npm test
+
+  build-and-push:
+    needs: [test-book-service, test-order-service]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+      - name: Build and Push Book Service
+        run: |
+          docker build -t $REGISTRY/$PROJECT_ID/bookstore/book-service:${{ github.sha }} \
+            -t $REGISTRY/$PROJECT_ID/bookstore/book-service:latest \
+            apps/book-service/
+          docker push --all-tags $REGISTRY/$PROJECT_ID/bookstore/book-service
+
+      - name: Build and Push Order Service
+        run: |
+          docker build -t $REGISTRY/$PROJECT_ID/bookstore/order-service:${{ github.sha }} \
+            -t $REGISTRY/$PROJECT_ID/bookstore/order-service:latest \
+            apps/order-service/
+          docker push --all-tags $REGISTRY/$PROJECT_ID/bookstore/order-service
+
+      - name: Build and Push Frontend
+        run: |
+          docker build -t $REGISTRY/$PROJECT_ID/bookstore/frontend:${{ github.sha }} \
+            -t $REGISTRY/$PROJECT_ID/bookstore/frontend:latest \
+            apps/frontend/
+          docker push --all-tags $REGISTRY/$PROJECT_ID/bookstore/frontend
+
+      - name: Update Helm Image Tags
+        run: |
+          sed -i "s/tag: .*/tag: ${{ github.sha }}/" helm-charts/book-service/values.yaml
+          sed -i "s/tag: .*/tag: ${{ github.sha }}/" helm-charts/order-service/values.yaml
+          sed -i "s/tag: .*/tag: ${{ github.sha }}/" helm-charts/frontend/values.yaml
+
+      - name: Commit Updated Tags
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add helm-charts/*/values.yaml
+          git commit -m "ci: update image tags to ${{ github.sha }}" || echo "No changes"
+          git push
