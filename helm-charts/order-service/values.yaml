@@ -1,7 +1,7 @@
 replicaCount: 2
 image:
   repository: us-central1-docker.pkg.dev/devops-project-489401/bookstore/order-service
-  tag: cddc24d3e5fef77f6bd669c5b6ada4d59c437859
+  tag: 626f8c635135bc4abf3dfd98fa8afa14e068a468
 port: 3001
 resources:
   requests:
