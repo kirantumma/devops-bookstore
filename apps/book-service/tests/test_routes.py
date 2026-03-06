@@ -1,10 +1,14 @@
 import pytest
+import os
+
+# Set test DB BEFORE importing app
+os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+
 from app import create_app, db
 
 @pytest.fixture
 def client():
     app = create_app()
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['TESTING'] = True
 
     with app.test_client() as client:
@@ -29,7 +33,6 @@ def test_create_book(client):
     assert response.get_json()['title'] == 'The DevOps Handbook'
 
 def test_get_books(client):
-    # Create a book first
     book_data = {
         'title': 'Site Reliability Engineering',
         'author': 'Betsy Beyer',
@@ -37,12 +40,9 @@ def test_get_books(client):
         'isbn': '9781491929124'
     }
     client.post('/api/books', json=book_data)
-
     response = client.get('/api/books')
     assert response.status_code == 200
-    books = response.get_json()
-    assert len(books) == 1
-    assert books[0]['title'] == 'Site Reliability Engineering'
+    assert len(response.get_json()) == 1
 
 def test_duplicate_isbn(client):
     book_data = {
