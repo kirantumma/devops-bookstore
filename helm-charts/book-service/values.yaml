@@ -1,7 +1,7 @@
 replicaCount: 2
 image:
   repository: us-central1-docker.pkg.dev/devops-project-489401/bookstore/book-service
-  tag: v1
+  tag: cddc24d3e5fef77f6bd669c5b6ada4d59c437859
 port: 5000
 resources:
   requests:
