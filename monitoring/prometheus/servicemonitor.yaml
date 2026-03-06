@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: bookstore-monitor
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames:
+      - bookstore
+  selector:
+    matchLabels: {}
+  endpoints:
+    - port: http
+      path: /health
+      interval: 30s
