@@ -418,15 +418,3 @@ terraform destroy -auto-approve
 | Grafana K8S Dashboard | Live cluster metrics — 4 nodes, 83 pods |
 | Grafana Node Exporter | Per-node CPU 18%, Memory 43%, Disk 71% |
 
----
-
-## 👤 Author
-
-**Kiran Tumma**  
-GitHub: [@kirantumma](https://github.com/kirantumma)
-
----
-
-## 📄 License
-
-MIT License
